@@ -8,26 +8,54 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{}
-func HandleConnections(w http.ResponseWriter, r *http.Request){
-	ws,err:=upgrader.Upgrade(w,r,nil)
-	if err !=nil{
-		log.Fatal("failed o start",err)
+// Upgrader with custom CheckOrigin to allow connections from any origin
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+// Define a struct to match the expected JSON structure
+type Message struct {
+	Message string `json:"message"`
+}
+
+// HandleConnections handles incoming WebSocket connections
+func HandleConnections(w http.ResponseWriter, r *http.Request) {
+	// Upgrade initial HTTP connection to a WebSocket connection
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Failed to upgrade connection:", err)
+		return
 	}
 	defer ws.Close()
-	for{
-		var msg string
-		err = ws.ReadJSON(&msg)
+
+	// Listening for messages from client
+	for {
+		var msg Message
+		// Read JSON message into the `msg` struct
+		err := ws.ReadJSON(&msg)
 		if err != nil {
-			log.Fatal(err)
+			log.Println("Error reading message:", err)
+			break // Exit loop if there’s an error
+		}
+		fmt.Println("Received Message:", msg.Message)
+
+		// Optionally, you can send a response back to the client
+		response := fmt.Sprintf("Message received: %s", msg.Message)
+		err = ws.WriteMessage(websocket.TextMessage, []byte(response))
+		if err != nil {
+			log.Println("Error sending message:", err)
+			break
+		}
 	}
-	fmt.Println("Received Message",msg)
 }
 
-}
-
-func main(){
-	http.HandleFunc("/ws",HandleConnections)
-	fmt.Println("starting server at port",9090)
-	http.ListenAndServe(":9090",nil)
+func main() {
+	http.HandleFunc("/ws", HandleConnections)
+	fmt.Println("Starting server at port", 9090)
+	err := http.ListenAndServe(":9090", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe error:", err)
+	}
 }
