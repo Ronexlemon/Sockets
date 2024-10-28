@@ -25,3 +25,9 @@ func HandleConnections(w http.ResponseWriter, r *http.Request){
 }
 
 }
+
+func main(){
+	http.HandleFunc("/ws",HandleConnections)
+	fmt.Println("starting server at port",9090)
+	http.ListenAndServe(":9090",nil)
+}
